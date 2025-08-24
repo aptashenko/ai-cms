@@ -13,8 +13,8 @@ export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
-  support_id: string;
+  @Column({ nullable: true })
+  support_id?: string;
 
   @Column()
   payer_name: string;
@@ -23,10 +23,10 @@ export class Payment {
   amount: number;
 
   @Column({ nullable: true })
-  message: string;
+  message?: string;
 
-  @Column()
-  userId: string; // uuid, приходит с фронта
+  @Column({ unique: true })
+  userId: string;
 
   @ManyToOne(() => CarmaResult, (result) => result.payments, {
     onDelete: "CASCADE",
