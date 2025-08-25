@@ -1,32 +1,36 @@
-// payments.entity.ts
 import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
+  ManyToOne,
+  Unique,
 } from "typeorm";
 import { CarmaResult } from "../carma/carma-result.entity";
 
 @Entity("payments")
+@Unique(["userId"]) // только одна оплата на userId
 export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ nullable: true })
-  support_id?: string;
+  @Column()
+  orderId: string; // Gumroad order_id
 
   @Column()
-  payer_name: string;
+  productId: string;
+
+  @Column()
+  email: string;
 
   @Column("decimal", { precision: 10, scale: 2 })
   amount: number;
 
-  @Column({ nullable: true })
-  message?: string;
+  @Column()
+  currency: string;
 
-  @Column({ unique: true })
-  userId: string;
+  @Column()
+  userId: string; // связываем с нашим пользователем
 
   @ManyToOne(() => CarmaResult, (result) => result.payments, {
     onDelete: "CASCADE",

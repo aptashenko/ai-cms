@@ -1,9 +1,4 @@
-// payments.service.ts
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Payment } from "./payments.entity";
@@ -11,51 +6,71 @@ import { CarmaResult } from "../carma/carma-result.entity";
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
-
     @InjectRepository(CarmaResult)
     private readonly carmaRepo: Repository<CarmaResult>,
   ) {}
 
-  async savePayment(payload: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-    const data = payload.data;
+  async handleGumroadWebhook(payload: any) {
+    this.logger.log("Webhook payload:", JSON.stringify(payload, null, 2));
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-    const userId = data.support_note;
-    if (!userId) {
-      throw new BadRequestException("Missing userId in support_note");
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { order_id, product_id, email, price, currency, custom_fields } =
+      payload;
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
+    const sessionId = custom_fields?.sessionId;
+    if (!sessionId) {
+      throw new BadRequestException("Missing sessionId in custom_fields");
     }
 
-    const existing = await this.paymentRepo.findOne({
+    // находим пользователя по sessionId (userId в нашей системе)
+    const carmaResult = await this.carmaRepo.findOne({
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      where: { userId },
+      where: { userId: sessionId },
     });
-    if (existing) {
+    if (!carmaResult) {
       throw new BadRequestException(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        `Payment already exists for userId=${payload.userId}`,
+        `No CarmaResult found for sessionId=${sessionId}`,
       );
     }
 
-    const payment = this.paymentRepo.create({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      support_id: data.transaction_id,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      payer_name: data.supporter_name,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-argument
-      amount: parseFloat(data.total_amount_charged),
+    // проверка, что уже не было оплаты
+    const existing = await this.paymentRepo.findOne({
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      userId,
+      where: { userId: sessionId },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `Payment already exists for userId=${sessionId}`,
+      );
+    }
+
+    // создаём оплату
+    const payment = this.paymentRepo.create({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      orderId: order_id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      productId: product_id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      email,
+      amount: price / 100,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      currency,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      userId: sessionId,
+      carmaResult,
     });
 
-    const saved = await this.paymentRepo.save(payment);
+    await this.paymentRepo.save(payment);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    await this.carmaRepo.update({ userId }, { paid: true });
+    carmaResult.paid = true;
+    await this.carmaRepo.save(carmaResult);
 
-    return saved;
+    return { success: true };
   }
 }
