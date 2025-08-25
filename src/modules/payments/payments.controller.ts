@@ -6,7 +6,7 @@ import { Response } from "express";
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Post("gumroad-webhook")
+  @Post("webhook")
   @HttpCode(200)
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error
