@@ -29,10 +29,4 @@ export class PaymentsController {
       return res.status(500).json({ ok: false });
     }
   }
-
-  @Get(":id")
-  @HttpCode(200)
-  async handleGetPayment(@Param("id") id: string) {
-    return this.paymentsService.findBySupportId(id);
-  }
 }

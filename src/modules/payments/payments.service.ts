@@ -20,11 +20,19 @@ export class PaymentsService {
   ) {}
 
   async savePayment(payload: any) {
-    const existing = await this.paymentRepo.findOne({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      where: { userId: payload.userId },
-    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
+    const data = payload.data;
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
+    const userId = data.support_note;
+    if (!userId) {
+      throw new BadRequestException("Missing userId in support_note");
+    }
+
+    const existing = await this.paymentRepo.findOne({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      where: { userId },
+    });
     if (existing) {
       throw new BadRequestException(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -34,36 +42,20 @@ export class PaymentsService {
 
     const payment = this.paymentRepo.create({
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      support_id: payload.transaction_id,
+      support_id: data.transaction_id,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      payer_name: payload.supporter_name,
+      payer_name: data.supporter_name,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-argument
-      amount: parseFloat(payload.total_amount_charged),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      message: payload.support_note || null,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
-      userId: payload.userId,
+      amount: parseFloat(data.total_amount_charged),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      userId,
     });
 
     const saved = await this.paymentRepo.save(payment);
 
-    // Обновляем флаг paid у результата
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
-    await this.carmaRepo.update({ userId: payload.userId }, { paid: true });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    await this.carmaRepo.update({ userId }, { paid: true });
 
     return saved;
-  }
-  async findBySupportId(supportId: string) {
-    const payment = await this.paymentRepo.findOne({
-      where: { support_id: supportId },
-    });
-
-    if (!payment) {
-      throw new NotFoundException(
-        `Payment with support_id "${supportId}" not found`,
-      );
-    }
-
-    return payment;
   }
 }
