@@ -19,11 +19,11 @@ export class PaymentsService {
     this.logger.log("Webhook payload:", JSON.stringify(payload, null, 2));
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { order_id, product_id, email, price, currency, custom_fields } =
+    const { order_id, product_id, email, price, currency, url_params } =
       payload;
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
-    const sessionId = custom_fields?.sessionId;
+    const sessionId = url_params?.uuid;
     if (!sessionId) {
       throw new BadRequestException("Missing sessionId in custom_fields");
     }
