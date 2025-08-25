@@ -14,19 +14,19 @@ export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  orderId: string; // Gumroad order_id
+  @Column({ nullable: true })
+  orderId: string;
 
-  @Column()
+  @Column({ nullable: true })
   productId: string;
 
-  @Column()
+  @Column({ nullable: true })
   email: string;
 
   @Column("decimal", { precision: 10, scale: 2 })
   amount: number;
 
-  @Column()
+  @Column({ nullable: true })
   currency: string;
 
   @Column()
