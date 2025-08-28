@@ -21,7 +21,7 @@ import {UsersModule} from "./modules/user/user.module";
             type: "postgres",
             url: cfg.get<string>("DATABASE_URL"),
             autoLoadEntities: true,
-            synchronize: true, // прод: миграции вместо sync
+            synchronize: false, // прод: миграции вместо sync
             migrationsRun: true,
             logging: false,
             ssl: { rejectUnauthorized: false },
