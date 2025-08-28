@@ -5,7 +5,11 @@ import { ValidationPipe } from "@nestjs/common";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: "*",
+        origin: [
+            "http://localhost:5173",
+            "https://ai-carma.vercel.app",
+        ],
+        credentials: true,
     },
   });
 
