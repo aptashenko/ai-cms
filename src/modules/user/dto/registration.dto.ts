@@ -9,6 +9,10 @@ export class RegisterDto {
   @IsUUID()
   reportUuid?: string;
 
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
+
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() date_of_birth?: string;
   @IsOptional() @IsString() country?: string;

@@ -25,30 +25,29 @@ export class UserController {
    * Иначе: findOrCreate(email) -> сгенерировать контент ИИ -> сохранить в репорт -> вернуть user + report.
    */
   @Post("register")
-  async register(@Body() dto: RegisterDto, @Req() req: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
-    const sessionUserId: string | undefined = req?.session?.userId;
+  async register(@Body() dto: RegisterDto) {
+    // 1) Если передан userId и НЕ просит новый reportUuid -> вернуть список его репортов
+    if (dto.userId && !dto.reportUuid) {
+      const user = await this.usersService.findById(dto.userId);
+      if (!user) throw new BadRequestException("User not found");
 
-    // 1) Уже залогинен и НЕ просит новый репорт -> вернуть список имеющихся
-    if (sessionUserId && !dto.reportUuid) {
-      const user = await this.usersService.findById(sessionUserId);
-      const reports = await this.usersService.getReportsSummary(sessionUserId);
+      const reports = await this.usersService.getReportsSummary(dto.userId);
       return {
         ok: true,
         user: { id: user.id, email: user.email },
-        reports, // [{ id, reportUuid, paid, created_at }, ...]
+        reports,
       };
     }
 
-    // 2) Обычная регистрация/логин + создание репорта
+    // 2) Создание нового репорта
     if (!dto.reportUuid) {
       throw new BadRequestException(
-        "reportUuid is required to create a new report",
+          "reportUuid is required to create a new report",
       );
     }
-    if (!dto.name || !dto.date_of_birth || !dto.country) {
+    if (!dto.name || !dto.date_of_birth || !dto.country || !dto.email) {
       throw new BadRequestException(
-        "name, date_of_birth and country are required to create a report",
+          "email, name, date_of_birth and country are required",
       );
     }
 
@@ -61,15 +60,6 @@ export class UserController {
       date_of_birth: dto.date_of_birth,
       country: dto.country,
     });
-
-    // авторизуем сессией
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (req?.session) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      req.session.userId = user.id;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      req.session.email = user.email;
-    }
 
     return {
       ok: true,
@@ -95,7 +85,7 @@ export class UserController {
   }
 
   @Post("login")
-  async login(@Body("email") email: string, @Req() req: any) {
+  async login(@Body("email") email: string) {
     if (!email) {
       throw new UnauthorizedException("Email is required");
     }
@@ -105,17 +95,9 @@ export class UserController {
       throw new UnauthorizedException("User not found");
     }
 
-    // сохраняем userId в сессии
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (req?.session) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      req.session.userId = user.id;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      req.session.email = user.email;
-    }
-
     const reports = await this.usersService.getReportsSummary(user.id);
 
+    // 👉 можно здесь сразу добавить генерацию токена (JWT), если нужно
     return {
       ok: true,
       user: { id: user.id, email: user.email },
