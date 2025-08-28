@@ -7,11 +7,14 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      "http://localhost:5173", // локалка
-      "https://ai-carma.vercel.app", // твой фронт
+      "http://localhost:5173",
+      "https://ai-carma.vercel.app",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true, // если нужны куки/авторизация
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type, Authorization",
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   app.useGlobalPipes(
