@@ -1,76 +1,78 @@
-import { Injectable, BadRequestException, Logger } from "@nestjs/common";
+// src/payments/payments.service.ts
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Payment } from "./payments.entity";
 import { CarmaResult } from "../carma/carma-result.entity";
+import { Payment } from "./payments.entity";
 
 @Injectable()
 export class PaymentsService {
-  private readonly logger = new Logger(PaymentsService.name);
-
   constructor(
-    @InjectRepository(Payment)
-    private readonly paymentRepo: Repository<Payment>,
     @InjectRepository(CarmaResult)
-    private readonly carmaRepo: Repository<CarmaResult>,
+    private readonly resultsRepo: Repository<CarmaResult>,
+    @InjectRepository(Payment)
+    private readonly paymentsRepo: Repository<Payment>,
   ) {}
 
-  async handleGumroadWebhook(payload: any) {
-    this.logger.log("Webhook payload:", JSON.stringify(payload, null, 2));
+  async handleGumroadWebhook(
+    body: {
+      url_params?: { uuid?: string } | null;
+      email?: string | null;
+      price?: string | number | null;
+      currency?: string | null;
+      order_id?: string | null;
+      product_id?: string | null;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _headers: Record<string, string>,
+  ) {
+    const reportUuid = body?.url_params?.uuid;
+    if (!reportUuid) throw new BadRequestException("Missing url_params.uuid");
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { order_id, product_id, email, price, currency, url_params } =
-      payload;
+    const report = await this.resultsRepo.findOne({ where: { reportUuid } });
+    if (!report) throw new BadRequestException("Report not found");
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
-    const sessionId = url_params?.uuid;
-    if (!sessionId) {
-      throw new BadRequestException("Missing sessionId in custom_fields");
+    // помечаем репорт оплаченным
+    if (!report.paid) {
+      report.paid = true;
+      await this.resultsRepo.save(report);
     }
 
-    // находим пользователя по sessionId (userId в нашей системе)
-    const carmaResult = await this.carmaRepo.findOne({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      where: { userId: sessionId },
-    });
-    if (!carmaResult) {
-      throw new BadRequestException(
-        `No CarmaResult found for sessionId=${sessionId}`,
-      );
-    }
+    // создаём/обновляем запись платежа (идемпотентность по паре userId+carmaResultId)
+    const amount =
+      typeof body.price === "string"
+        ? Number(body.price)
+        : typeof body.price === "number"
+          ? body.price
+          : null;
 
-    // проверка, что уже не было оплаты
-    const existing = await this.paymentRepo.findOne({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      where: { userId: sessionId },
+    // upsert по userId+carmaResultId
+    const existing = await this.paymentsRepo.findOne({
+      where: { userId: report.userId, carmaResultId: report.id },
     });
+
     if (existing) {
-      throw new BadRequestException(
-        `Payment already exists for userId=${sessionId}`,
+      existing.orderId = body.order_id ?? existing.orderId;
+      existing.productId = body.product_id ?? existing.productId;
+      existing.email = body.email ?? existing.email;
+      existing.amount = amount ?? existing.amount;
+      existing.currency = body.currency ?? existing.currency;
+      await this.paymentsRepo.save(existing);
+    } else {
+      await this.paymentsRepo.save(
+        this.paymentsRepo.create({
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error
+          userId: report.userId,
+          carmaResultId: report.id,
+          carmaResult: report,
+          orderId: body.order_id ?? null,
+          productId: body.product_id ?? null,
+          email: body.email ?? null,
+          amount,
+          currency: body.currency ?? null,
+        }),
       );
     }
-
-    // создаём оплату
-    const payment = this.paymentRepo.create({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      orderId: order_id,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      productId: product_id,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      email,
-      amount: price / 100,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      currency,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      userId: sessionId,
-      carmaResult,
-    });
-
-    await this.paymentRepo.save(payment);
-
-    carmaResult.paid = true;
-    await this.carmaRepo.save(carmaResult);
-
-    return { success: true };
   }
 }
