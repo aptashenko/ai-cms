@@ -9,6 +9,8 @@ async function bootstrap() {
     origin: ["http://localhost:5173", "https://ai-carma.vercel.app"],
   });
 
+  //
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
