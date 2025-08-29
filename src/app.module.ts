@@ -12,7 +12,7 @@ import {UsersModule} from "./modules/user/user.module";
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      inject: [ConfigService], // <-- ОБЯЗАТЕЛЬНО
+      inject: [ConfigService],
       useFactory: (cfg: ConfigService) => {
         const isProd = cfg.get("NODE_ENV") === "production";
 
@@ -21,7 +21,7 @@ import {UsersModule} from "./modules/user/user.module";
             type: "postgres",
             url: cfg.get<string>("DATABASE_URL"),
             autoLoadEntities: true,
-            synchronize: true, // прод: миграции вместо sync
+            synchronize: true,
             migrationsRun: true,
             logging: false,
             ssl: { rejectUnauthorized: false },
