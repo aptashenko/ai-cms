@@ -4,7 +4,8 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { CarmaModule } from "./modules/carma/carma.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
-import {UsersModule} from "./modules/user/user.module";
+import { UsersModule } from "./modules/user/user.module";
+import { HealthController } from "./modules/health/health.controller";
 
 @Module({
   imports: [
@@ -46,7 +47,8 @@ import {UsersModule} from "./modules/user/user.module";
 
     CarmaModule,
     PaymentsModule,
-    UsersModule
+    UsersModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
