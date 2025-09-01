@@ -1,8 +1,3 @@
-# fly.toml app configuration file generated for ai-cms on 2025-09-01T22:22:36+02:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = 'ai-cms'
 primary_region = 'fra'
 
@@ -16,15 +11,14 @@ primary_region = 'fra'
   min_machines_running = 1
   processes = ['app']
 
-[[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
-
-[http_service.checks]
-  [http_service.checks.http]
+  [[http_service.checks]]
     interval = "15s"
     timeout = "2s"
     grace_period = "30s"
     method = "GET"
     path = "/health"
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
